@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--HEAD-START-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Parallax Putting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<!--HEAD-END-->
+</head>
+<body>
+<!--BODY-START-->
+<div id="app">
+  <div id="view"></div>
+
+  <header id="hud" hidden>
+    <div class="hud-chip" aria-live="polite"><span id="hud-hole">Hole 1</span><span class="sep">·</span><span id="hud-attempt">Attempt 1</span></div>
+    <div class="hud-actions">
+      <button id="btn-restart" class="chip-btn" type="button" title="Reset the putter and your view (this attempt)">Restart</button>
+      <button id="btn-menu" class="chip-btn" type="button" title="Menu (M)">Menu</button>
+    </div>
+  </header>
+
+  <p id="hint" hidden></p>
+  <div id="pad" hidden>Hold,<br>pull down,<br>release</div>
+
+  <aside id="result" class="card" hidden aria-live="polite">
+    <div class="result-head">
+      <div>
+        <p class="eyebrow" id="r-eyebrow">Shot result</p>
+        <p class="big" id="r-big">0.0°</p>
+      </div>
+      <span class="tag" id="r-tag">Good</span>
+    </div>
+    <dl class="rows" id="r-rows"></dl>
+    <div class="legend"><span><i class="you"></i>Your putt</span><span><i class="line"></i>The true line</span></div>
+    <p class="session" id="r-session"></p>
+    <div class="result-actions">
+      <button class="btn primary" id="btn-next" type="button">Next hole <span class="kbd">Enter</span></button>
+      <button class="btn" id="btn-retry" type="button">Retry <span class="kbd">R</span></button>
+      <button class="btn" id="btn-behind" type="button">Behind line <span class="kbd">V</span></button>
+    </div>
+  </aside>
+
+  <section id="menu" class="overlay" aria-label="Start">
+    <div class="card">
+      <div class="menu-intro">
+        <p class="eyebrow">Mini-golf alignment trainer</p>
+        <h1 class="title">Parallax <span>Putting</span></h1>
+        <p class="lede">You stand over the ball the way you would on a real course, slightly off to the side and never square to the cup. Nothing on screen tells you where to aim. The numbers appear only after the ball stops.</p>
+        <ul class="loop" aria-label="The training loop"><li>Look</li><li>Judge</li><li>Align</li><li>Hit</li><li>Result</li></ul>
+      </div>
+      <form class="menu-setup" id="setup">
+        <fieldset class="field">
+          <legend class="eyebrow">Mode</legend>
+          <div class="seg">
+            <label><input type="radio" name="mode" id="mode-practice" value="practice" checked><span>Practice<small>New random hole every putt</small></span></label>
+            <label><input type="radio" name="mode" id="mode-course" value="course"><span>Course<small>8 fixed training holes</small></span></label>
+          </div>
+        </fieldset>
+        <fieldset class="field">
+          <legend class="eyebrow">Difficulty</legend>
+          <div class="scorecard-wrap">
+            <table class="scorecard" role="radiogroup" aria-label="Difficulty">
+              <thead><tr><th>Level</th><th>Cup Ø</th><th>Putts</th><th>Stance off line</th></tr></thead>
+              <tbody id="diff-rows"></tbody>
+            </table>
+          </div>
+        </fieldset>
+        <div class="row2">
+          <fieldset class="field">
+            <legend class="eyebrow">You putt</legend>
+            <div class="seg">
+              <label><input type="radio" name="hand" id="hand-right" value="right" checked><span>Right-handed</span></label>
+              <label><input type="radio" name="hand" id="hand-left" value="left"><span>Left-handed</span></label>
+            </div>
+          </fieldset>
+          <div class="field">
+            <label class="eyebrow" for="eye-height">Eye height at address</label>
+            <div class="range"><input type="range" id="eye-height" min="1.3" max="1.8" step="0.01" value="1.55"><output id="eye-height-out" for="eye-height">1.55 m</output></div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="btn-start" type="submit">Start putting</button>
+          <button class="btn" id="btn-stats" type="button">Statistics</button>
+        </div>
+        <p class="note" id="menu-note">Shots are saved in this browser only.</p>
+      </form>
+      <div class="menu-help">
+        <p class="eyebrow">Controls</p>
+        <dl class="controls">
+          <dt><span class="kbd">Mouse</span></dt><dd>Turn the putter around the ball. Hold <span class="kbd">Shift</span> for fine moves, or use <span class="kbd">A</span><span class="kbd">D</span>.</dd>
+          <dt><span class="kbd">Hold</span></dt><dd>Press and hold the left button, pull the mouse back toward you to take the putter back, release to putt. A longer backswing hits it firmer.</dd>
+          <dt><span class="kbd">←</span><span class="kbd">→</span><span class="kbd">↑</span><span class="kbd">↓</span></dt><dd>Turn your head. Right-drag and the mouse wheel work too. <span class="kbd">C</span> centres your view.</dd>
+          <dt><span class="kbd">Esc</span></dt><dd>Cancel a backswing (right-click works too). <span class="kbd">M</span> opens this menu.</dd>
+          <dt><span class="kbd">Space</span></dt><dd>Hold while the ball rolls to speed it up.</dd>
+          <dt><span class="kbd">Touch</span></dt><dd>Drag one finger to turn the putter, two fingers to look around, and use the pad at the bottom right to putt.</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="stats" class="overlay" hidden aria-label="Statistics">
+    <div class="stats-inner">
+      <div class="stats-top">
+        <div>
+          <p class="eyebrow">Training record</p>
+          <h2>Alignment statistics</h2>
+        </div>
+        <div class="tools">
+          <div class="filters" id="stats-filters" role="group" aria-label="Filter by difficulty"></div>
+          <button class="btn" id="btn-stats-close" type="button">Back</button>
+        </div>
+      </div>
+      <div id="stats-body"></div>
+      <div class="confirm" id="reset-area"></div>
+    </div>
+  </section>
+</div>
+<!--BODY-END-->
+<!--SCRIPTS-START-->
+<script src="lib/three.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/course.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/club.js"></script>
+<script src="js/player.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/input.js"></script>
+<script src="js/game.js"></script>
+<!--SCRIPTS-END-->
+</body>
+</html>
