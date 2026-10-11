@@ -1,121 +1,121 @@
-/*
- * player.js — the golfer's body and head.
- *
- * The stance is set by the layout (deliberately never square to the true
- * line). The camera is the golfer's eyes: it sits beside and behind the ball
- * at address height and rotates around a neck pivot, so turning the head to
- * look at the cup shifts the eyes slightly, as it does in real life.
- */
 (function (root) {
   'use strict';
-  const MG = (root.MG = root.MG || {});
-  const C = MG.CONFIG, U = MG.Util;
-  const DEG = U.DEG;
+  const PP = (root.PP = root.PP || {});
+  const cfg = PP.cfg, u = PP.util;
+  const D2R = u.d2r;
 
-  MG.Player = function (camera) {
-    const P = C.player;
-    const st = {
-      ball: [0, 0],
+  PP.makeGolfer = function (camera) {
+    const gp = cfg.golfer;
+    const me = {
+       ball: [0, 0],
       stanceYaw: 0,
-      eyeSide: -1, // −1: eyes left of the line (right-handed), +1: left-handed
-      eyeHeight: P.eyeHeight,
-      pivot: new THREE.Vector3(),
-      yaw: 0, // head yaw relative to the stance
-      pitch: P.defaultPitchDeg * DEG,
+      eyeSide: -1,
+      eyeY: gp.eyeY,
+     pivot: new THREE.Vector3(),
+       yaw: 0,
+      pitch: gp.restPitch * D2R,
       tYaw: 0,
-      tPitch: P.defaultPitchDeg * DEG,
+      tPitch: gp.restPitch * D2R,
       defYaw: 0,
       defPitch: 0,
-      behind: null, // post-shot "behind the line" view
-      sway: 0
+      behind: null,
+     sway: 0
     };
     const shoulders = [new THREE.Vector3(), new THREE.Vector3()];
     const handsBase = new THREE.Vector3();
 
-    function setStance(L, settings) {
-      st.ball = [L.ball[0], L.ball[1]];
-      st.stanceYaw = L.stanceYaw;
-      st.eyeSide = settings.leftHanded ? 1 : -1;
-      st.eyeHeight = settings.eyeHeight || P.eyeHeight;
-      st.behind = null;
-      const fx = U.dirX(st.stanceYaw), fz = U.dirZ(st.stanceYaw);
-      const rx = U.rightX(st.stanceYaw), rz = U.rightZ(st.stanceYaw);
-      const side = st.eyeSide * P.eyeSide;
-      st.pivot.set(st.ball[0] - fx * P.eyeBehind + rx * side, st.eyeHeight, st.ball[1] - fz * P.eyeBehind + rz * side);
+     function setUp(L, settings, lie, aimYaw, smooth) {
+      const at = lie || L.ball;
+      const prev = me.pivot.clone();
+      me.ball = [at[0], at[1]];
+      me.baseY = (L.terrain || PP.terrain.flat).y(at[0], at[1]);
+      me.stanceYaw = aimYaw != null ? aimYaw : L.stanceYaw;
+      me.eyeSide = settings.leftHanded ? 1 : -1;
+      me.eyeY = (settings.eyeY || gp.eyeY) + me.baseY;
+      me.behind = null;
+       const fx = u.dirX(me.stanceYaw), fz = u.dirZ(me.stanceYaw);
+      const rx = u.rightX(me.stanceYaw), rz = u.rightZ(me.stanceYaw);
+      const side = me.eyeSide * gp.eyeOff;
+      me.pivot.set(me.ball[0] - fx * gp.eyeBack + rx * side, me.eyeY, me.ball[1] - fz * gp.eyeBack + rz * side);
 
-      // Shoulders run along the stance line, below and slightly toward the ball.
-      const sx = st.pivot.x - rx * side * 0.12, sz = st.pivot.z - rz * side * 0.12, sy = st.eyeHeight - 0.3;
+      const sx = me.pivot.x - rx * side * 0.12, sz = me.pivot.z - rz * side * 0.12, sy = me.eyeY - 0.3;
       shoulders[0].set(sx + fx * 0.18, sy, sz + fz * 0.18);
-      shoulders[1].set(sx - fx * 0.18, sy, sz - fz * 0.18);
-      // Hands: just below the eyes and a little toward the ball, so the shaft
-      // rises out of the bottom of the frame and never hides the ball.
-      handsBase.set(st.pivot.x + (st.ball[0] - st.pivot.x) * 0.2 + fx * 0.04, 0.8, st.pivot.z + (st.ball[1] - st.pivot.z) * 0.2 + fz * 0.04);
+     shoulders[1].set(sx - fx * 0.18, sy, sz - fz * 0.18);
+      handsBase.set(me.pivot.x + (me.ball[0] - me.pivot.x) * 0.2 + fx * 0.04, me.baseY + 0.8, me.pivot.z + (me.ball[1] - me.pivot.z) * 0.2 + fz * 0.04);
 
-      // Default head: looking a metre past the ball, ball low in the frame.
-      const lx = st.ball[0] + fx * 1.0 - st.pivot.x, lz = st.ball[1] + fz * 1.0 - st.pivot.z;
-      st.defYaw = U.wrap(U.angleOf(lx, lz) - st.stanceYaw);
-      const hb = Math.hypot(st.ball[0] - st.pivot.x, st.ball[1] - st.pivot.z);
-      const dep = Math.atan2(st.eyeHeight - C.ball.radius, hb);
-      st.defPitch = -(dep - 0.24 * P.fovDeg * DEG);
-      resetView(true);
-    }
-
-    function resetView(snap) {
-      st.tYaw = st.defYaw;
-      st.tPitch = st.defPitch;
-      if (snap) {
-        st.yaw = st.tYaw;
-        st.pitch = st.tPitch;
+       const lx = me.ball[0] + fx * 1.0 - me.pivot.x, lz = me.ball[1] + fz * 1.0 - me.pivot.z;
+      me.defYaw = u.wrap(u.angleOf(lx, lz) - me.stanceYaw);
+     const hb = Math.hypot(me.ball[0] - me.pivot.x, me.ball[1] - me.pivot.z);
+      const dep = Math.atan2(me.eyeY - cfg.ball.r, hb);
+      me.defPitch = -(dep - 0.24 * gp.fov * D2R);
+      recentre(true);
+      if (smooth) {
+        me.from = prev;
+        me.blend = 1;
+      } else {
+        me.from = null;
+        me.blend = 0;
       }
     }
 
+
+    function recentre(snap) {
+      me.tYaw = me.defYaw;
+      me.tPitch = me.defPitch;
+      if (snap) {
+        me.yaw = me.tYaw;
+        me.pitch = me.tPitch;
+      }
+     }
+
+
     function look(dYaw, dPitch) {
-      const lim = P.maxLookYawDeg * DEG;
-      st.tYaw = U.clamp(st.tYaw + dYaw, -lim, lim);
-      st.tPitch = U.clamp(st.tPitch + dPitch, P.minPitchDeg * DEG, P.maxPitchDeg * DEG);
+      const lim = gp.yawLimit * D2R;
+      me.tYaw = u.clamp(me.tYaw + dYaw, -lim, lim);
+      me.tPitch = u.clamp(me.tPitch + dPitch, gp.pitchMin * D2R, gp.pitchMax * D2R);
     }
 
-    // Post-shot: crouch behind the ball on the true line.
-    function behindLine(start, idealYaw, holeDist) {
-      st.behind = { start, idealYaw };
-      st.tYaw = 0;
-      st.tPitch = -Math.atan2(0.75, holeDist + 1.3) - 2 * DEG;
-      st.yaw = st.tYaw;
-      st.pitch = st.tPitch;
+    function goBehind(start, idealYaw, holeDist) {
+      me.behind = { start, idealYaw };
+      me.tYaw = 0;
+      me.tPitch = -Math.atan2(0.75, holeDist + 1.3) - 2 * D2R;
+      me.yaw = me.tYaw;
+      me.pitch = me.tPitch;
+     }
+    function comeBack() {
+      me.behind = null;
+      recentre(true);
     }
-    function leaveBehind() {
-      st.behind = null;
-      resetView(true);
-    }
-
     const _look = new THREE.Vector3(), _up = new THREE.Vector3(), _eye = new THREE.Vector3();
     function update(dt, t) {
       const k = 1 - Math.exp(-dt * 16);
-      st.yaw += (st.tYaw - st.yaw) * k;
-      st.pitch += (st.tPitch - st.pitch) * k;
+      me.yaw += (me.tYaw - me.yaw) * k;
+      me.pitch += (me.tPitch - me.pitch) * k;
       let baseYaw, pivot;
-      if (st.behind) {
-        baseYaw = st.behind.idealYaw;
-        const s = st.behind.start;
-        pivot = _eye.set(s[0] - U.dirX(baseYaw) * 1.3, 0.78, s[1] - U.dirZ(baseYaw) * 1.3);
+      if (me.behind) {
+         baseYaw = me.behind.idealYaw;
+         const s = me.behind.start;
+        pivot = _eye.set(s[0] - u.dirX(baseYaw) * 1.3, me.baseY + 0.78, s[1] - u.dirZ(baseYaw) * 1.3);
       } else {
-        baseYaw = st.stanceYaw;
-        pivot = _eye.copy(st.pivot);
-        // Very small postural sway, as a standing body never holds perfectly still.
+        baseYaw = me.stanceYaw;
+        pivot = _eye.copy(me.pivot);
         pivot.x += Math.sin(t * 0.9) * 0.0012;
         pivot.y += Math.sin(t * 1.4 + 1) * 0.0008;
-        pivot.z += Math.cos(t * 0.7) * 0.0012;
+       pivot.z += Math.cos(t * 0.7) * 0.0012;
+     }
+      if (me.blend > 0 && me.from) {
+        me.blend = Math.max(0, me.blend - dt / (cfg.play.walkMs / 1000));
+        const e = me.blend * me.blend * (3 - 2 * me.blend);
+        pivot.lerp(me.from, e);
       }
-      const yaw = baseYaw + st.yaw, cp = Math.cos(st.pitch);
-      _look.set(Math.sin(yaw) * cp, Math.sin(st.pitch), -Math.cos(yaw) * cp);
-      // head-up vector (perpendicular to look, in the vertical plane)
-      _up.set(-Math.sin(yaw) * Math.sin(st.pitch), cp, Math.cos(yaw) * Math.sin(st.pitch));
-      const n = P.neckToEye;
+      const yaw = baseYaw + me.yaw, cp = Math.cos(me.pitch);
+      _look.set(Math.sin(yaw) * cp, Math.sin(me.pitch), -Math.cos(yaw) * cp);
+      _up.set(-Math.sin(yaw) * Math.sin(me.pitch), cp, Math.cos(yaw) * Math.sin(me.pitch));
+      const n = gp.neckToEye;
       camera.position.copy(pivot).addScaledVector(_up, n[1]).addScaledVector(_look, -n[2]);
       camera.up.set(0, 1, 0);
       camera.lookAt(camera.position.x + _look.x, camera.position.y + _look.y, camera.position.z + _look.z);
     }
-
-    return { st, shoulders, handsBase, setStance, resetView, look, behindLine, leaveBehind, update };
+    return { me, shoulders, handsBase, setUp, recentre, look, goBehind, comeBack, update };
   };
 })(typeof window !== 'undefined' ? window : globalThis);
